@@ -2,6 +2,7 @@
 #define METATABLE_H
 
 #include <QMetaObject>
+#include <QMetaProperty>
 #include <QString>
 #include <QSet>
 #include <QList>
@@ -10,17 +11,29 @@
 
 namespace dbup {
 
+class MetaTable;
+
 /**
  * @brief The QdbupTableColumn class
  */
 class QdbupTableColumn {
-  QString m_name;
+  enum ColumnRole {
+    PrimaryKeyRole,
+    DataRole,
+    ForeignKeyRole,
+    SubclassRole
+  };
+  QString m_name; // column name and property name setProperty to use different property name
   QString m_qType;
   QSet<QString> m_constraints;
+  QSet<ColumnRole> m_roles;
+  MetaTable* m_foreignKeyTo = nullptr; // pointer to relation pointing table
+  QString m_propertyName; // property name (after ctor same as name)
 public:
   static const char* const PRIMARY_KEY;
   static const char* const AUTOINCREMENT;
-  QdbupTableColumn(const QString& qType, const QString& name) : m_qType(qType), m_name(name) { }
+  QdbupTableColumn(const QString& qType, const QString& name)
+    : m_qType(qType), m_name(name), m_propertyName(name) { }
   QString name() const { return m_name; }
   void setName(const QString& name) { m_name = name; }
   QString qType() const { return m_qType; }
@@ -32,8 +45,37 @@ public:
         m_constraints.insert(trimmed);
       }
     }
+    if (m_constraints.contains(PRIMARY_KEY)) {
+      m_roles.insert(PrimaryKeyRole);
+    }
   }
+  void setForeignKey(bool value) {
+    if (value) {
+      m_roles.insert(ForeignKeyRole);
+    } else {
+      m_roles.remove(ForeignKeyRole);
+    }
+  }
+  void setSubclass(bool value) {
+    if (value) {
+      m_roles.insert(SubclassRole);
+    } else {
+      m_roles.remove(SubclassRole);
+    }
+  }
+  QString propertyName() {
+    return "m_" + m_propertyName;
+  }
+  void setPropertyName(const QString& propertyName) {
+    m_propertyName = propertyName;
+  }
+  bool isForeignKey() const { return m_roles.contains(ForeignKeyRole); }
+  bool isPrimaryKey() const { return m_roles.contains(PrimaryKeyRole); }
+  bool isDataOnly() const { return !isPrimaryKey() && !isForeignKey(); }
+  bool isSubclass() const { return m_roles.contains(SubclassRole); }
   const QSet<QString>& constraints() const { return m_constraints; }
+  MetaTable* foreignKeyTable() const { return m_foreignKeyTo; }
+  void setForeignKeyTable(MetaTable* metaTable) { m_foreignKeyTo = metaTable; }
 };
 
 /**
@@ -47,7 +89,7 @@ public:
 
   MetaTable* parentTable = nullptr;
   const QMetaObject* metaObject;
-  QdbupTable* table;
+//  QdbupTable* table;
   QString tableName;
   QList<QdbupTableColumn*> columns;
 

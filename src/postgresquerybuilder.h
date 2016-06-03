@@ -1,6 +1,8 @@
 #ifndef POSTGRESQUERYBUILDER_H
 #define POSTGRESQUERYBUILDER_H
 
+#include <QSqlQuery>
+
 #include "querybuilder.h"
 
 namespace dbup {

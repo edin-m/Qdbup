@@ -8,7 +8,7 @@
 #include <QSqlResult>
 #include <QSqlQuery>
 #include <QPair>
-
+#include <QMetaProperty>
 #include <QMetaMethod>
 #include <QMetaClassInfo>
 #include <QMetaObject>
@@ -99,9 +99,12 @@ bool GenericDatabase::open() {
   return m_db.open();
 }
 
+/**
+ * DEPRECATE
+ */
 void GenericDatabase::update(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
-    QSqlQuery updateQuery = prepareUpdateQuery(metaTable, item);
+//    QSqlQuery updateQuery = prepareUpdateQuery(metaTable, item);
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
@@ -109,21 +112,66 @@ void GenericDatabase::update(QdbupTable* item) {
 
 void GenericDatabase::save(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
-    QSqlQuery saveQuery = prepareInsertQuery(metaTable, item);
+    QList<QdbupTableColumn*> columns;
+    foreach (QdbupTableColumn* column, metaTable->columns) {
+      if (!column->isPrimaryKey()) {
+        columns.append(column);
+      }
+    }
+    QSqlQuery query;
+    bool isInsertQuery = !item->m_existsInDb;
+    if (!isInsertQuery) {
+      query = m_queryBuilder->updateQuery(m_db, metaTable, item, columns);
+    } else {
+      query = m_queryBuilder->insertQuery(m_db, metaTable, item, columns);
+    }
+    bool result = query.exec();
+    if (!result) {
+      // TODO: emit error
+      qDebug() << query.lastError().databaseText() << query.lastError().driverText();
+    } else {
+      // update id if insert
+      if (isInsertQuery) {
+        QVariant lastInsertId = query.lastInsertId();
+        qDebug() << metaTable->primaryKey()->propertyName();
+        item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
+        item->m_existsInDb = true;
+      }
+    }
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
 }
 
-MetaTable* GenericDatabase::findMetaTable(QdbupTable* table) {
+/**
+ * Find meta table containing metaObject->className() same as className
+ */
+MetaTable* GenericDatabase::findMetaTableByClassName(const QString& className) {
+  QString classNameLocal(className);
+  if (classNameLocal.right(1) == "*") {
+    classNameLocal = classNameLocal.left(classNameLocal.lastIndexOf('*'));
+  }
   foreach (MetaTable* metaTable, m_metaTables) {
-    if (metaTable->metaObject == table->metaObject()) {
+    if (metaTable->metaObject->className() == classNameLocal) {
       return metaTable;
     }
   }
   return nullptr;
 }
 
+MetaTable* GenericDatabase::findMetaTable(QdbupTable* table) {
+  const QMetaObject* metaObject = table->metaObject();
+  foreach (MetaTable* metaTable, m_metaTables) {
+    if (metaTable->metaObject == metaObject) {
+      return metaTable;
+    }
+  }
+  return nullptr;
+}
+
+/**
+ * Return qType of a primary key column of a className table
+ */
 QString GenericDatabase::findClassNameColumnType(const QString& className) {
   QString columnType = className;
   // if advanced type take its primary key as a type for db
@@ -146,7 +194,7 @@ void GenericDatabase::registerTables() {
   foreach (QdbupTable* table, m_tables) {
     MetaTable* metaTable = new MetaTable;
     m_metaTables.append(metaTable);
-    metaTable->table = table;
+//    metaTable->table = table;
     metaTable->tableName = table->tableName();
     metaTable->metaObject = table->metaObject();
   }
@@ -164,7 +212,6 @@ void GenericDatabase::registerColumns() {
 }
 
 void GenericDatabase::registerSuperTable(MetaTable* metaTable) {
-//  QdbupTable* table = metaTable->table;
   const QMetaObject* meta = metaTable->metaObject;
   // register super table
   if (!QString(meta->superClass()->className()).contains("QdbupTable")) {
@@ -179,8 +226,6 @@ void GenericDatabase::registerSuperTable(MetaTable* metaTable) {
 }
 
 void GenericDatabase::registerColumn(MetaTable* metaTable) {
-//  QdbupTable* table = metaTable->table;
-//  const QMetaObject* meta = table->metaObject();
   const QMetaObject* meta = metaTable->metaObject;
   int method_count = meta->methodCount();
   // register columns
@@ -225,23 +270,21 @@ void GenericDatabase::registerConstraints(MetaTable* metaTable) {
 }
 
 void GenericDatabase::registerSubclassRelationship(MetaTable* metaTable) {
-//  QdbupTable* table = metaTable->table;
-//  const QMetaObject* meta = table->metaObject();
   const QMetaObject* meta = metaTable->metaObject;
   // register subclass relationship
   if (metaTable->parentTable) {
     QString columnType = metaTable->parentTable->metaObject->className();
     QString columnName = columnType.toLower() + "_id";
-//    columnType = columnType + "*"; // type should be a ptr
     columnType = findClassNameColumnType(columnType);
     QdbupTableColumn* column = new QdbupTableColumn(columnType, columnName);
+//    column->setForeignKey(true);
+//    column->setForeignKeyTable(metaTable->parentTable);
+    column->setSubclass(true);
     metaTable->columns.append(column);
   }
 }
 
 void GenericDatabase::registerBelongsToRelationship(MetaTable* metaTable) {
-//  QdbupTable* table = metaTable->table;
-//  const QMetaObject* meta = table->metaObject();
   const QMetaObject* meta = metaTable->metaObject;
   int method_count = meta->methodCount();
   // register belongs to relationship
@@ -249,22 +292,27 @@ void GenericDatabase::registerBelongsToRelationship(MetaTable* metaTable) {
     QMetaMethod method = meta->method(i);
     QString name = QString(method.name());
     if (name.contains(REGISTER_BELONGS_TO_DELIMITER)) {
-      QString columnName = name.right(name.length() - QString(REGISTER_BELONGS_TO_DELIMITER).length());
-      columnName = columnName + "_id";
+      QString origColumnName = name.right(name.length() - QString(REGISTER_BELONGS_TO_DELIMITER).length());
+      QString columnName = origColumnName + "_id";
       QString columnType = method.typeName();
       if (metaTable->parentTable && metaTable->parentTable->findColumn(columnName)) {
         continue;
       }
       columnType = findClassNameColumnType(columnType);
       QdbupTableColumn* column = new QdbupTableColumn(columnType, columnName);
+      column->setPropertyName(origColumnName);
+      column->setForeignKey(true);
+      if (MetaTable* foreignMetaTable = findMetaTableByClassName(QString(method.typeName()))) {
+        column->setForeignKeyTable(foreignMetaTable);
+      } else {
+        qWarning() << "Could not find foreign meta table!" << method.typeName();
+      }
       metaTable->columns.append(column);
     }
   }
 }
 
 void GenericDatabase::registerHasManyRelationship(MetaTable* metaTable) {
-//  QdbupTable* table = metaTable->table;
-//  const QMetaObject* meta = table->metaObject();
   const QMetaObject* meta = metaTable->metaObject;
   int method_count = meta->methodCount();
   // register has many relationship

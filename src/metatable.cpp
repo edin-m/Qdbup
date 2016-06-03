@@ -16,7 +16,7 @@ QdbupTableColumn* MetaTable::findColumn(QString columnName) {
 
 QdbupTableColumn* MetaTable::primaryKey() {
   foreach (QdbupTableColumn* column, columns) {
-    if (column->constraints().contains(QdbupTableColumn::PRIMARY_KEY)) {
+    if (column->isPrimaryKey()) {
       return column;
     }
   }

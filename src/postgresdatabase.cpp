@@ -70,13 +70,5 @@ QString PostgresDatabase::genericDefaultDataType() {
   return "text";
 }
 
-QSqlQuery PostgresDatabase::prepareUpdateQuery(MetaTable* metaTable, QdbupTable* table) {
-  return QSqlQuery();
-}
-
-QSqlQuery PostgresDatabase::prepareInsertQuery(MetaTable* metaTable, QdbupTable* table) {
-  return QSqlQuery();
-}
-
 }
 

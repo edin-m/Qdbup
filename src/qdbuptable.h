@@ -28,7 +28,7 @@ public: \
 private: \
   Q_INVOKABLE typeParam* __registerBelongsTo##nameParam() { return nullptr; } \
 protected: \
-  typeParam* m_##nameParam; \
+  typeParam* m_##nameParam = nullptr; \
 public: \
   Q_PROPERTY(typeParam* m_##nameParam READ get_##nameParam WRITE set_##nameParam); \
   void set_##nameParam(typeParam* nameParam) { this->m_##nameParam = nameParam; } \
@@ -43,9 +43,13 @@ public: \
 namespace dbup {
 
 class QdbupDatabase;
+class GenericDatabase;
 
 class QdbupTable : public QObject {
   Q_OBJECT
+  friend class dbup::QdbupDatabase;
+  friend class dbup::GenericDatabase;
+  bool m_existsInDb = false;
 protected:
   dbup::QdbupDatabase* m_db;
 public:

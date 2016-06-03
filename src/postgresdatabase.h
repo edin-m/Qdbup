@@ -18,8 +18,6 @@ private:
   QueryBuilder* createQueryBuilder() override;
   QString columnDbType(const QdbupTableColumn* col) override;
   QString genericDefaultDataType() override;
-  QSqlQuery prepareUpdateQuery(MetaTable* metaTable, QdbupTable* table) override;
-  QSqlQuery prepareInsertQuery(MetaTable* metaTable, QdbupTable* table) override;
 };
 
 }

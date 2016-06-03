@@ -38,9 +38,8 @@ private:
   virtual QueryBuilder* createQueryBuilder() = 0;
   virtual QString columnDbType(const QdbupTableColumn* col) = 0;
   virtual QString genericDefaultDataType() = 0;
-  virtual QSqlQuery prepareUpdateQuery(MetaTable* metaTable, QdbupTable* table) = 0;
-  virtual QSqlQuery prepareInsertQuery(MetaTable* metaTable, QdbupTable* table) = 0;
 
+  MetaTable* findMetaTableByClassName(const QString& className);
   MetaTable* findMetaTable(QdbupTable* table);
   void clearDoubleTableEntries();
   void registerTable(QdbupTable* table) override;
