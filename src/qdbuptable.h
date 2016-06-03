@@ -9,9 +9,13 @@
 public: \
   QString tableName() const override { return QString(#className).toLower(); } \
   className* findOne() { return m_db->findOne<className>(this); } \
-  void update() { return m_db->update(this); } \
   void save() { return m_db->save(this); } \
-private:
+  void remove() { return m_db->remove(this); } \
+private: \
+  bool m_existsInDb_##nameParam = false; \
+  Q_PROPERTY(bool m_existsInDb_##nameParam READ get_existsInDb_##nameParam WRITE set_existsInDb_##nameParam); \
+  void set_existsInDb_##nameParam(bool value) { this->m_existsInDb_##nameParam = value; } \
+  bool get_existsInDb_##nameParam() { return this->m_existsInDb_##nameParam; }
 
 #define DB_COLUMN(typeParam, nameParam, ...) \
 private: \
@@ -44,12 +48,20 @@ namespace dbup {
 
 class QdbupDatabase;
 class GenericDatabase;
+class QdbupTableColumn;
+class QueryBuilder;
 
 class QdbupTable : public QObject {
   Q_OBJECT
   friend class dbup::QdbupDatabase;
   friend class dbup::GenericDatabase;
-  bool m_existsInDb = false;
+  friend class dbup::QdbupTableColumn;
+  friend class dbup::QueryBuilder;
+//  bool m_existsInDb = false;
+  void setExistsInDb(MetaTable* metaTable, bool value);
+  bool existsInDb(MetaTable* metaTable);
+  QVariant primaryKeyValue(MetaTable* metaTable);
+  QVariant columnValue(QdbupTableColumn* tableColumn);
 protected:
   dbup::QdbupDatabase* m_db;
 public:

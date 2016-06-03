@@ -30,19 +30,31 @@ int main(int argc, char* argv[])
   db->initialize();
 
   bool testAuthor = true;
+  bool testArticle = false;
+  bool testAd = true;
 
+  author->set_name("new author");
   if (testAuthor) {
-    author->set_name("new author");
     author->save();
+    qDebug() << author->get_id();
   }
-
   if (testAuthor) {
     article->set_author(author);
+    ad->set_author(author);
+  }
+  article->set_name("wicked article");
+  if (testArticle) {
+    article->save();
+    qDebug() << article->get_id();
   }
 
-  article->set_name("wicked article");
-  article->save();
-  qDebug() << article->get_id();
+  ad->set_name("Ad article 1");
+  ad->set_expires("7 days");
+  if (testAd) {
+    ad->save();
+    qDebug() << ad->get_id();
+  }
+
 
 
 
@@ -51,6 +63,7 @@ int main(int argc, char* argv[])
     { "name", "Jacob" }
   };
 
+  qDebug() << "end";
   qDebug() << "end";
   return 0;
 }

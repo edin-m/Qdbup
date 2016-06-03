@@ -21,6 +21,7 @@ class QdbupTableColumn {
     PrimaryKeyRole,
     DataRole,
     ForeignKeyRole,
+    // Not used. Is it needed?
     SubclassRole
   };
   QString m_name; // column name and property name setProperty to use different property name
@@ -56,7 +57,7 @@ public:
       m_roles.remove(ForeignKeyRole);
     }
   }
-  void setSubclass(bool value) {
+  void setSubclassColumn(bool value) {
     if (value) {
       m_roles.insert(SubclassRole);
     } else {
@@ -69,10 +70,11 @@ public:
   void setPropertyName(const QString& propertyName) {
     m_propertyName = propertyName;
   }
+  void setPrimaryKey(bool value);
   bool isForeignKey() const { return m_roles.contains(ForeignKeyRole); }
   bool isPrimaryKey() const { return m_roles.contains(PrimaryKeyRole); }
   bool isDataOnly() const { return !isPrimaryKey() && !isForeignKey(); }
-  bool isSubclass() const { return m_roles.contains(SubclassRole); }
+  bool isSubclassColumn() const { return m_roles.contains(SubclassRole); }
   const QSet<QString>& constraints() const { return m_constraints; }
   MetaTable* foreignKeyTable() const { return m_foreignKeyTo; }
   void setForeignKeyTable(MetaTable* metaTable) { m_foreignKeyTo = metaTable; }
@@ -95,6 +97,7 @@ public:
 
   QdbupTableColumn* findColumn(QString columnName);
   QdbupTableColumn* primaryKey();
+  QString existsInDbPropertyName() const;
 };
 
 }

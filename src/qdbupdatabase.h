@@ -3,10 +3,10 @@
 
 #include <QObject>
 
-class MetaTable;
 
 namespace dbup {
 
+class MetaTable;
 class QdbupTable;
 
 class QdbupDatabase : public QObject {
@@ -31,8 +31,9 @@ public:
     return QList<className*>();
   }
 
-  virtual void update(QdbupTable* item) = 0;
+//  virtual void update(QdbupTable* item) = 0;
   virtual void save(QdbupTable* item) = 0;
+  virtual void remove(QdbupTable* item) = 0;
 
   template<typename className, typename thisName>
   className* findOne(thisName* thisParam) {

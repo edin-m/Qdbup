@@ -99,44 +99,100 @@ bool GenericDatabase::open() {
   return m_db.open();
 }
 
-/**
- * DEPRECATE
- */
-void GenericDatabase::update(QdbupTable* item) {
-  if (MetaTable* metaTable = findMetaTable(item)) {
-//    QSqlQuery updateQuery = prepareUpdateQuery(metaTable, item);
+void GenericDatabase::saveMetaTableItem(MetaTable* metaTable, QdbupTable* item) {
+  QList<QdbupTableColumn*> columns;
+  bool isSubclass = metaTable->parentTable != nullptr;
+  // create list of columns for query
+  foreach (QdbupTableColumn* column, metaTable->columns) {
+    // append primary all (and primary key) columns for subclasses
+    if (isSubclass) {
+      columns.append(column);
+    } else if (!column->isPrimaryKey()) { // but not for all other relationships
+      columns.append(column);
+    }
+  }
+  QSqlQuery query;
+  bool existsInDb = item->existsInDb(metaTable);
+  if (existsInDb) {
+    query = m_queryBuilder->updateQuery(m_db, metaTable, item, columns);
   } else {
-    qWarning() << "Could not find meta table!" << item->metaObject()->className();
+    query = m_queryBuilder->insertQuery(m_db, metaTable, item, columns);
+  }
+  qDebug() << query.lastQuery();
+  bool result = query.exec();
+  if (!result) {
+    // TODO: emit error
+    qDebug() << query.lastError().databaseText() << query.lastError().driverText();
+  } else {
+    // update id if insert
+    if (!existsInDb) {
+      QVariant lastInsertId = query.lastInsertId();
+      item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
+      item->setExistsInDb(metaTable, true);
+    }
   }
 }
 
 void GenericDatabase::save(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
-    QList<QdbupTableColumn*> columns;
-    foreach (QdbupTableColumn* column, metaTable->columns) {
-      if (!column->isPrimaryKey()) {
-        columns.append(column);
-      }
+    if (metaTable->parentTable) {
+      saveMetaTableItem(metaTable->parentTable, item);
     }
-    QSqlQuery query;
-    bool isInsertQuery = !item->m_existsInDb;
-    if (!isInsertQuery) {
-      query = m_queryBuilder->updateQuery(m_db, metaTable, item, columns);
-    } else {
-      query = m_queryBuilder->insertQuery(m_db, metaTable, item, columns);
+    saveMetaTableItem(metaTable, item);
+//    QList<QdbupTableColumn*> columns;
+//    foreach (QdbupTableColumn* column, metaTable->columns) {
+//      if (!column->isPrimaryKey()) {
+//        columns.append(column);
+//        qDebug() << column->name();
+//      }
+//    }
+//    QSqlQuery query;
+////    bool isInsertQuery = !item->m_existsInDb;
+////    bool existsInDb = item->property(metaTable->existsInDbPropertyName().toUtf8().constData()).toBool();
+//    bool existsInDb = item->existsInDb(metaTable);
+//    if (existsInDb) {
+//      query = m_queryBuilder->updateQuery(m_db, metaTable, item, columns);
+//    } else {
+//      query = m_queryBuilder->insertQuery(m_db, metaTable, item, columns);
+//    }
+//    bool result = query.exec();
+//    if (!result) {
+//      // TODO: emit error
+//      qDebug() << query.lastError().databaseText() << query.lastError().driverText();
+//    } else {
+//      // update id if insert
+//      if (!existsInDb) {
+//        QVariant lastInsertId = query.lastInsertId();
+//        item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
+////        item->m_existsInDb = true;
+////        item->setProperty(metaTable->existsInDbPropertyName().toUtf8().constData(), true);
+//        item->setExistsInDb(metaTable, true);
+//      }
+//    }
+  } else {
+    qWarning() << "Could not find meta table!" << item->metaObject()->className();
+  }
+}
+
+void GenericDatabase::remove(QdbupTable* item) {
+  if (MetaTable* metaTable = findMetaTable(item)) {
+    QSqlQuery query(m_db);
+//    bool existsInDb = item->property(metaTable->existsInDbPropertyName().toUtf8().constData()).toBool();
+    bool existsInDb = item->existsInDb(metaTable);
+//    if (!item->m_existsInDb) {
+    if (!existsInDb) {
+      qWarning() << "Item does not exist in db!";
+      // TODO: fail and return and emit error
     }
+    query = m_queryBuilder->deleteQuery(query, metaTable, item);
     bool result = query.exec();
     if (!result) {
       // TODO: emit error
       qDebug() << query.lastError().databaseText() << query.lastError().driverText();
     } else {
-      // update id if insert
-      if (isInsertQuery) {
-        QVariant lastInsertId = query.lastInsertId();
-        qDebug() << metaTable->primaryKey()->propertyName();
-        item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
-        item->m_existsInDb = true;
-      }
+//      item->setProperty(metaTable->existsInDbPropertyName().toUtf8().constData(), false);
+      item->setExistsInDb(metaTable, false);
+//      item->m_existsInDb = false;
     }
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
@@ -279,7 +335,8 @@ void GenericDatabase::registerSubclassRelationship(MetaTable* metaTable) {
     QdbupTableColumn* column = new QdbupTableColumn(columnType, columnName);
 //    column->setForeignKey(true);
 //    column->setForeignKeyTable(metaTable->parentTable);
-    column->setSubclass(true);
+    column->setSubclassColumn(true);
+    column->setPrimaryKey(true);
     metaTable->columns.append(column);
   }
 }

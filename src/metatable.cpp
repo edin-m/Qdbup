@@ -23,6 +23,18 @@ QdbupTableColumn* MetaTable::primaryKey() {
   return nullptr;
 }
 
+QString MetaTable::existsInDbPropertyName() const {
+  return QString("m_existsInDb_") + metaObject->className();
+}
+
+void QdbupTableColumn::setPrimaryKey(bool value) {
+  if (value) {
+    m_roles.insert(PrimaryKeyRole);
+  } else {
+    m_roles.remove(PrimaryKeyRole);
+  }
+}
+
 }
 
 

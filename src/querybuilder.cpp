@@ -7,6 +7,16 @@
 
 namespace dbup {
 
+QVariant QueryBuilder::findValueForForeignKey(QdbupTable* item, QdbupTableColumn* column) {
+  QObject* ptr = item->property(column->propertyName().toUtf8().constData()).value<QObject*>();
+  if (!ptr) {
+    return QVariant::String;
+  }
+  QString primaryKeyPropertyName = column->foreignKeyTable()->primaryKey()->propertyName();
+  QVariant var = ptr->property(primaryKeyPropertyName.toUtf8().constData());
+  return var;
+}
+
 QSqlQuery QueryBuilder::insertQuery(QSqlDatabase& db,
                                     MetaTable* metaTable,
                                     QdbupTable* item,
@@ -27,22 +37,21 @@ QSqlQuery QueryBuilder::insertQuery(QSqlDatabase& db,
   queryStr = queryStr.arg(preparedColumns);
   insertQuery.prepare(queryStr);
   foreach (QdbupTableColumn* column, columns) {
-    QVariant val = item->property(column->propertyName().toUtf8().data());
+//    QVariant val = item->property(column->propertyName().toUtf8().data());
+    QVariant val = item->columnValue(column);
+    // data columns
     if (column->isDataOnly()) {
       insertQuery.addBindValue(val);
     }
-    // TODO: add saving foreign keys
+    // foreign keys
     if (column->isForeignKey()) {
-      qDebug() << column->propertyName();
-      qDebug() << item->property(column->propertyName().toUtf8().constData());
-      QObject* ptr = item->property(column->propertyName().toUtf8().constData()).value<QObject*>();
-      if (ptr) {
-        QString primaryKeyPropertyName = column->foreignKeyTable()->primaryKey()->propertyName();
-        QVariant var = ptr->property(primaryKeyPropertyName.toUtf8().constData());
-        insertQuery.addBindValue(var);
-      } else {
-        insertQuery.addBindValue(QVariant::String);
-      }
+      QVariant foreignVal = findValueForForeignKey(item, column);
+      insertQuery.addBindValue(foreignVal);
+    }
+    // one-to-one subclass
+    if (metaTable->parentTable && column->isSubclassColumn()) {
+      QVariant primaryKeyVal = item->property(metaTable->parentTable->primaryKey()->propertyName().toUtf8().constData());
+      insertQuery.addBindValue(primaryKeyVal);
     }
   }
   return insertQuery;
@@ -58,24 +67,40 @@ QSqlQuery QueryBuilder::updateQuery(QSqlDatabase& db,
     queryStr += column->name() + "=?, ";
   }
   queryStr = queryStr.left(queryStr.length() - 2);
+//  queryStr += " WHERE " + metaTable->primaryKey()->name()
+//      + "=" + item->property(metaTable->primaryKey()->propertyName().toUtf8().constData()).toString();
   queryStr += " WHERE " + metaTable->primaryKey()->name()
-      + "=" + item->property(metaTable->primaryKey()->propertyName().toUtf8().constData()).toString();
+      + "=" + item->primaryKeyValue(metaTable).toString();
   qDebug() << queryStr;
   updateQuery.prepare(queryStr);
   foreach (QdbupTableColumn* column, columns) {
     if (column->isDataOnly()) {
-      QVariant val = item->property(column->propertyName().toUtf8().constData());
+//      QVariant val = item->property(column->propertyName().toUtf8().constData());
+      QVariant val = item->columnValue(column);
       updateQuery.addBindValue(val);
     }
     if (column->isForeignKey()) {
-      QString primaryKeyOfForeignTable = column->foreignKeyTable()->primaryKey()->propertyName();
-//      QVariant foreignKeyVal = item->property(column->propertyName());
-//      QObject* ptr = foreignKeyVal.value<QObject*>();
-//      QVariant foreignKey = ptr->property(primaryKeyOfForeignTable);
-//      qDebug() << foreignKey;
+      QVariant foreignKeyVal = findValueForForeignKey(item, column);
+      updateQuery.addBindValue(foreignKeyVal);
+    }
+    if (metaTable->parentTable && column->isSubclassColumn()) {
+//      QVariant primaryKeyVal = item->property(metaTable->parentTable->primaryKey()->propertyName().toUtf8().constData());
+      QVariant primaryKeyVal = item->primaryKeyValue(metaTable->parentTable);
+      updateQuery.addBindValue(primaryKeyVal);
     }
   }
   return updateQuery;
+}
+
+QSqlQuery QueryBuilder::deleteQuery(QSqlQuery& query,
+                                    MetaTable* metaTable,
+                                    QdbupTable* item) {
+  QString queryStr = QString("DELETE FROM %1 WHERE id=?").arg(metaTable->tableName);
+//  QVariant primaryKeyValue = item->property(metaTable->primaryKey()->propertyName().toUtf8().constData());
+  QVariant primaryKeyValue = item->primaryKeyValue(metaTable);
+  query.prepare(queryStr);
+  query.addBindValue(primaryKeyValue);
+  return query;
 }
 
 }

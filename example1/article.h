@@ -32,6 +32,7 @@ public:
 class Book : public dbup::QdbupTable {
   Q_OBJECT
   DB_TABLE(Book)
+  DB_COLUMN(long, id)
   DB_COLUMN(QString, title)
 public:
    explicit Book(dbup::QdbupDatabase* db);
@@ -50,6 +51,7 @@ public:
 class AdsArticle : public Article {
   Q_OBJECT
   DB_TABLE(AdsArticle)
+//  DB_COLUMN(long, id)
   DB_COLUMN(QString, expires)
 public:
   explicit AdsArticle(dbup::QdbupDatabase* db);

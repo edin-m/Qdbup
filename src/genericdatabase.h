@@ -32,13 +32,15 @@ public:
   void setPassword(const QString& password) override;
   bool open() override;
 
-  void update(QdbupTable* item) override;
   void save(QdbupTable* item) override;
+  void remove(QdbupTable* item) override;
+
 private:
   virtual QueryBuilder* createQueryBuilder() = 0;
   virtual QString columnDbType(const QdbupTableColumn* col) = 0;
   virtual QString genericDefaultDataType() = 0;
 
+  void saveMetaTableItem(MetaTable* metaTable, QdbupTable* item);
   MetaTable* findMetaTableByClassName(const QString& className);
   MetaTable* findMetaTable(QdbupTable* table);
   void clearDoubleTableEntries();
