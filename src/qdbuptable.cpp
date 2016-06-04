@@ -1,5 +1,7 @@
 #include "qdbuptable.h"
 
+#include <QDebug>
+
 #include "qdbupdatabase.h"
 #include "metatable.h"
 
@@ -17,8 +19,16 @@ QVariant QdbupTable::primaryKeyValue(MetaTable* metaTable) {
   return property(metaTable->primaryKey()->propertyName().toUtf8().constData());
 }
 
+void QdbupTable::setPrimaryKeyValue(MetaTable* metaTable, QVariant value) {
+  setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), value);
+}
+
 QVariant QdbupTable::columnValue(QdbupTableColumn* tableColumn) {
   return property(tableColumn->propertyName().toUtf8().constData());
+}
+
+void QdbupTable::setColumnValue(QdbupTableColumn* tableColumn, QVariant value) {
+  setProperty(tableColumn->propertyName().toUtf8().constData(), value);
 }
 
 QdbupTable::QdbupTable(QdbupDatabase* db)

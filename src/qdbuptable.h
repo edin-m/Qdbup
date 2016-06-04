@@ -2,15 +2,21 @@
 #define QDBUPTABLE_H
 
 #include <QObject>
+#include <QVariant>
 
 #include "qdbupdatabase.h"
+
+//  className* findOne() { return m_db->findOne<className>(this); } \
 
 #define DB_TABLE(className) \
 public: \
   QString tableName() const override { return QString(#className).toLower(); } \
-  className* findOne() { return m_db->findOne<className>(this); } \
+  static className* findOne(dbup::QdbupDatabase* db, QVariant id) { \
+    return db->findOne<className>(QString(#className), id); \
+  } \
   void save() { return m_db->save(this); } \
   void remove() { return m_db->remove(this); } \
+  Q_INVOKABLE className* __dbupConstructor() { return new className(m_db); } \
 private: \
   bool m_existsInDb_##nameParam = false; \
   Q_PROPERTY(bool m_existsInDb_##nameParam READ get_existsInDb_##nameParam WRITE set_existsInDb_##nameParam); \
@@ -57,18 +63,18 @@ class QdbupTable : public QObject {
   friend class dbup::GenericDatabase;
   friend class dbup::QdbupTableColumn;
   friend class dbup::QueryBuilder;
-//  bool m_existsInDb = false;
-  void setExistsInDb(MetaTable* metaTable, bool value);
-  bool existsInDb(MetaTable* metaTable);
-  QVariant primaryKeyValue(MetaTable* metaTable);
-  QVariant columnValue(QdbupTableColumn* tableColumn);
+public:
+  Q_INVOKABLE void setExistsInDb(MetaTable* metaTable, bool value);
+  Q_INVOKABLE bool existsInDb(MetaTable* metaTable);
+  Q_INVOKABLE QVariant primaryKeyValue(MetaTable* metaTable);
+  Q_INVOKABLE void setPrimaryKeyValue(MetaTable* metaTable, QVariant value);
+  Q_INVOKABLE QVariant columnValue(QdbupTableColumn* tableColumn);
+  Q_INVOKABLE void setColumnValue(QdbupTableColumn* tableColumn, QVariant value);
 protected:
   dbup::QdbupDatabase* m_db;
 public:
   explicit QdbupTable(QdbupDatabase* db);
   virtual QString tableName() const = 0;
-
-//  virtual void save();
 };
 
 }

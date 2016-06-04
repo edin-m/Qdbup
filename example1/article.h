@@ -16,7 +16,7 @@ class Author : public dbup::QdbupTable {
   DB_COLUMN(QString, hair)
   DB_HAS_MANY(Article, articles)
 public:
-  explicit Author(dbup::QdbupDatabase* db);
+  Q_INVOKABLE explicit Author(dbup::QdbupDatabase* db);
 };
 
 class Publisher : public dbup::QdbupTable {
@@ -26,7 +26,7 @@ class Publisher : public dbup::QdbupTable {
   DB_COLUMN(QString, name)
   DB_HAS_MANY(Book, books)
 public:
-  explicit Publisher(dbup::QdbupDatabase* db);
+  Q_INVOKABLE explicit Publisher(dbup::QdbupDatabase* db);
 };
 
 class Book : public dbup::QdbupTable {
@@ -35,7 +35,7 @@ class Book : public dbup::QdbupTable {
   DB_COLUMN(long, id)
   DB_COLUMN(QString, title)
 public:
-   explicit Book(dbup::QdbupDatabase* db);
+   Q_INVOKABLE explicit Book(dbup::QdbupDatabase* db);
 };
 
 class Article : public dbup::QdbupTable {
@@ -45,7 +45,7 @@ class Article : public dbup::QdbupTable {
   DB_COLUMN(QString, name)
   DB_BELONGS_TO(Author, author)
 public:
-  explicit Article(dbup::QdbupDatabase* db);
+  Q_INVOKABLE explicit Article(dbup::QdbupDatabase* db);
 };
 
 class AdsArticle : public Article {
@@ -54,7 +54,7 @@ class AdsArticle : public Article {
 //  DB_COLUMN(long, id)
   DB_COLUMN(QString, expires)
 public:
-  explicit AdsArticle(dbup::QdbupDatabase* db);
+  Q_INVOKABLE explicit AdsArticle(dbup::QdbupDatabase* db);
 };
 
 #endif // ARTICLE_H

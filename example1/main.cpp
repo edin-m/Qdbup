@@ -29,35 +29,21 @@ int main(int argc, char* argv[])
   AdsArticle* ad = new AdsArticle(db);
   db->initialize();
 
-  bool testAuthor = true;
-  bool testArticle = false;
-  bool testAd = true;
+  auto ClearAll = [=]() {
+    db->database().exec("TRUNCATE TABLE author");
+    db->database().exec("TRUNCATE TABLE adsarticle");
+    db->database().exec("TRUNCATE TABLE article");
+  };
 
-  author->set_name("new author");
-  if (testAuthor) {
-    author->save();
-    qDebug() << author->get_id();
-  }
-  if (testAuthor) {
-    article->set_author(author);
-    ad->set_author(author);
-  }
-  article->set_name("wicked article");
-  if (testArticle) {
-    article->save();
-    qDebug() << article->get_id();
-  }
+  ClearAll();
 
-  ad->set_name("Ad article 1");
-  ad->set_expires("7 days");
-  if (testAd) {
-    ad->save();
-    qDebug() << ad->get_id();
-  }
+  article->set_name("wicked sick");
+  article->save();
+  QVariant id = article->get_id();
+  qDebug() << "article id" << id;
 
-
-
-
+  Article* newart = Article::findOne(db, id);
+  qDebug() << newart->get_name();
 
   QMap<QString, QString> map = {
     { "name", "Jacob" }

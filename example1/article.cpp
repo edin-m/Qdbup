@@ -3,7 +3,6 @@
 Article::Article(dbup::QdbupDatabase* db)
   : QdbupTable(db)
 {
-
 }
 
 Author::Author(dbup::QdbupDatabase* db)

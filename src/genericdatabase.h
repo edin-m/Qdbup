@@ -2,7 +2,6 @@
 #define GENERICDATABASE_H
 
 #include <QObject>
-#include <QSqlDatabase>
 #include <QSharedPointer>
 #include <QSqlQuery>
 
@@ -10,7 +9,18 @@
 #include "metatable.h"
 #include "querybuilder.h"
 
+class MyObject : public QObject {
+  Q_OBJECT
+public:
+  Q_INVOKABLE MyObject(dbup::QdbupDatabase* db) { }
+//  MyObject(const MyObject&) { }
+//  ~MyObject() { }
+  Q_INVOKABLE QString WTF() { return "WTF"; }
+};
+//Q_DECLARE_METATYPE(MyObject)
+
 namespace dbup {
+
 
 class GenericDatabase : public QdbupDatabase {
   Q_OBJECT
@@ -22,6 +32,8 @@ protected:
 public:
   explicit GenericDatabase(QObject* parent = 0);
   ~GenericDatabase();
+
+  const QSqlDatabase& database() const override { return m_db; }
 
   void initialize() override;
 
@@ -35,13 +47,17 @@ public:
   void save(QdbupTable* item) override;
   void remove(QdbupTable* item) override;
 
+protected:
+  virtual QdbupTable* findById(const QString& className, QVariant id) override;
+
 private:
   virtual QueryBuilder* createQueryBuilder() = 0;
   virtual QString columnDbType(const QdbupTableColumn* col) = 0;
   virtual QString genericDefaultDataType() = 0;
 
-  void saveMetaTableItem(MetaTable* metaTable, QdbupTable* item);
-  MetaTable* findMetaTableByClassName(const QString& className);
+  void saveOrUpdateMetaTableItem(MetaTable* metaTable, QdbupTable* item);
+  void removeMetaTableItem(MetaTable* metaTable, QdbupTable* item);
+  MetaTable* findMetaTableByClassName(const QString& className) ;
   MetaTable* findMetaTable(QdbupTable* table);
   void clearDoubleTableEntries();
   void registerTable(QdbupTable* table) override;

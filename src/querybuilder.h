@@ -11,6 +11,10 @@ namespace dbup {
 class QueryBuilder {
 protected:
   virtual QVariant findValueForForeignKey(QdbupTable* item, QdbupTableColumn* column);
+  void bindColumnToQuery(MetaTable* metaTable,
+                         QdbupTable* item,
+                         QdbupTableColumn* column,
+                         QSqlQuery& query);
 public:
   virtual ~QueryBuilder() { }
   virtual QString createTableNoColumns() = 0;
@@ -26,6 +30,9 @@ public:
   virtual QSqlQuery deleteQuery(QSqlQuery& query,
                                 MetaTable* metaTable,
                                 QdbupTable* item);
+  virtual QSqlQuery selectByIdQuery(QSqlDatabase& db,
+                                    MetaTable* metaTable,
+                                    QVariant id);
 };
 
 }

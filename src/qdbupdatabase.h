@@ -2,7 +2,8 @@
 #define QDBUPDATABASE_H
 
 #include <QObject>
-
+#include <QSqlDatabase>
+#include <QVariant>
 
 namespace dbup {
 
@@ -14,6 +15,7 @@ class QdbupDatabase : public QObject {
   friend class QdbupTable;
 protected:
   virtual void registerTable(QdbupTable* table) = 0;
+  virtual QdbupTable* findById(const QString& className, QVariant id) = 0;
 
 public:
   explicit QdbupDatabase(QObject* parent) : QObject(parent) { }
@@ -25,6 +27,8 @@ public:
   virtual void setPassword(const QString& password) = 0;
   virtual bool open() = 0;
 
+  virtual const QSqlDatabase& database() const = 0;
+
   template<typename className, typename thisName>
   QList<className*> findHasMany(thisName thisPtr) {
     const QMetaObject* meta = thisPtr->metaObject();
@@ -35,15 +39,16 @@ public:
   virtual void save(QdbupTable* item) = 0;
   virtual void remove(QdbupTable* item) = 0;
 
-  template<typename className, typename thisName>
-  className* findOne(thisName* thisParam) {
-    return nullptr;
+  template<typename className>
+  className* findOne(const QString& classNameParam, QVariant id) {
+    return static_cast<className*>(findById(classNameParam, id));
   }
 
   template<typename className, typename thisName>
   QList<className*> find(thisName* thisParam) {
     return QList<className*>();
   }
+
 };
 
 }

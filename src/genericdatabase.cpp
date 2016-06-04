@@ -12,8 +12,10 @@
 #include <QMetaMethod>
 #include <QMetaClassInfo>
 #include <QMetaObject>
+#include <QMetaType>
 #include <QDebug>
 #include <QScopedPointer>
+#include <QCoreApplication>
 
 #include "qdbupdatabase.h"
 
@@ -99,7 +101,7 @@ bool GenericDatabase::open() {
   return m_db.open();
 }
 
-void GenericDatabase::saveMetaTableItem(MetaTable* metaTable, QdbupTable* item) {
+void GenericDatabase::saveOrUpdateMetaTableItem(MetaTable* metaTable, QdbupTable* item) {
   QList<QdbupTableColumn*> columns;
   bool isSubclass = metaTable->parentTable != nullptr;
   // create list of columns for query
@@ -127,7 +129,7 @@ void GenericDatabase::saveMetaTableItem(MetaTable* metaTable, QdbupTable* item) 
     // update id if insert
     if (!existsInDb) {
       QVariant lastInsertId = query.lastInsertId();
-      item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
+      item->setPrimaryKeyValue(metaTable, lastInsertId);
       item->setExistsInDb(metaTable, true);
     }
   }
@@ -136,67 +138,78 @@ void GenericDatabase::saveMetaTableItem(MetaTable* metaTable, QdbupTable* item) 
 void GenericDatabase::save(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
     if (metaTable->parentTable) {
-      saveMetaTableItem(metaTable->parentTable, item);
+      saveOrUpdateMetaTableItem(metaTable->parentTable, item);
     }
-    saveMetaTableItem(metaTable, item);
-//    QList<QdbupTableColumn*> columns;
-//    foreach (QdbupTableColumn* column, metaTable->columns) {
-//      if (!column->isPrimaryKey()) {
-//        columns.append(column);
-//        qDebug() << column->name();
-//      }
-//    }
-//    QSqlQuery query;
-////    bool isInsertQuery = !item->m_existsInDb;
-////    bool existsInDb = item->property(metaTable->existsInDbPropertyName().toUtf8().constData()).toBool();
-//    bool existsInDb = item->existsInDb(metaTable);
-//    if (existsInDb) {
-//      query = m_queryBuilder->updateQuery(m_db, metaTable, item, columns);
-//    } else {
-//      query = m_queryBuilder->insertQuery(m_db, metaTable, item, columns);
-//    }
-//    bool result = query.exec();
-//    if (!result) {
-//      // TODO: emit error
-//      qDebug() << query.lastError().databaseText() << query.lastError().driverText();
-//    } else {
-//      // update id if insert
-//      if (!existsInDb) {
-//        QVariant lastInsertId = query.lastInsertId();
-//        item->setProperty(metaTable->primaryKey()->propertyName().toUtf8().data(), lastInsertId);
-////        item->m_existsInDb = true;
-////        item->setProperty(metaTable->existsInDbPropertyName().toUtf8().constData(), true);
-//        item->setExistsInDb(metaTable, true);
-//      }
-//    }
+    saveOrUpdateMetaTableItem(metaTable, item);
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
 }
 
+
+void GenericDatabase::removeMetaTableItem(MetaTable* metaTable, QdbupTable* item) {
+  QSqlQuery query(m_db);
+  bool existsInDb = item->existsInDb(metaTable);
+  if (!existsInDb) {
+    qWarning() << "Item does not exist in db!";
+    // TODO: fail and return and emit error
+  }
+  query = m_queryBuilder->deleteQuery(query, metaTable, item);
+  qDebug() << query.lastQuery();
+  bool result = query.exec();
+  if (!result) {
+    // TODO: emit error
+    qDebug() << query.lastError().databaseText() << query.lastError().driverText();
+  } else {
+    item->setExistsInDb(metaTable, false);
+  }
+}
+
 void GenericDatabase::remove(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
-    QSqlQuery query(m_db);
-//    bool existsInDb = item->property(metaTable->existsInDbPropertyName().toUtf8().constData()).toBool();
-    bool existsInDb = item->existsInDb(metaTable);
-//    if (!item->m_existsInDb) {
-    if (!existsInDb) {
-      qWarning() << "Item does not exist in db!";
-      // TODO: fail and return and emit error
-    }
-    query = m_queryBuilder->deleteQuery(query, metaTable, item);
-    bool result = query.exec();
-    if (!result) {
-      // TODO: emit error
-      qDebug() << query.lastError().databaseText() << query.lastError().driverText();
-    } else {
-//      item->setProperty(metaTable->existsInDbPropertyName().toUtf8().constData(), false);
-      item->setExistsInDb(metaTable, false);
-//      item->m_existsInDb = false;
+    removeMetaTableItem(metaTable, item);
+    if (metaTable->parentTable) {
+      removeMetaTableItem(metaTable->parentTable, item);
     }
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
+}
+
+QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
+  if (MetaTable* metaTable = findMetaTableByClassName(className)) {
+    // TODO: join any foreign keys in query
+    QSqlQuery selectQuery = m_queryBuilder->selectByIdQuery(m_db, metaTable, id);
+    qDebug() << selectQuery.lastQuery();
+    bool result = selectQuery.exec();
+    if (!selectQuery.first()) {
+      // TODO: emit error could not find since .lastError() is empty
+    }
+    if (result) {
+      QdbupTable* item = static_cast<QdbupTable*>(metaTable->metaObject->newInstance(Q_ARG(dbup::QdbupDatabase*, this)));
+      item->setExistsInDb(metaTable, true);
+      const QSqlRecord& record = selectQuery.record();
+      foreach (QdbupTableColumn* column, metaTable->columns) {
+        QVariant value = record.field(column->name()).value();
+        qDebug() << column->name() << value;
+        if (column->isPrimaryKey()) {
+          item->setPrimaryKeyValue(metaTable, value);
+        } else {
+          // TODO: foreign keys
+          if (column->isDataOnly()) {
+            item->setColumnValue(column, value);
+          }
+        }
+      }
+      return item;
+    } else {
+      // TODO: emit error
+      qDebug() << selectQuery.lastError().databaseText() << selectQuery.lastError().driverText();
+    }
+  } else {
+    qDebug() << "Could not find meta table by class name" << className;
+  }
+  return nullptr;
 }
 
 /**
@@ -315,9 +328,9 @@ void GenericDatabase::registerConstraints(MetaTable* metaTable) {
       QString columnName = name.right(name.length() - QString(REGISTER_COLUMN_CONSTRAINTS_DELIMITER).length());
       if (QdbupTableColumn* column = metaTable->findColumn(columnName)) {
         QString constraints;
-//        method.invoke(qobject_cast<QObject*>(const_cast<QdbupTable*>(table)), Qt::DirectConnection, Q_RETURN_ARG(QString, constraints));
-        QdbupTable* table2 = static_cast<QdbupTable*>(metaTable->metaObject->newInstance(Q_ARG(QdbupDatabase*, this)));
+        QdbupTable* table2 = static_cast<QdbupTable*>(metaTable->metaObject->newInstance(Q_ARG(dbup::QdbupDatabase*, this)));
         method.invoke(qobject_cast<QObject*>(const_cast<QdbupTable*>(table2)), Qt::DirectConnection, Q_RETURN_ARG(QString, constraints));
+        qDebug() << column->name() << constraints;
         column->addConstraints(constraints);
         delete table2;
       }
