@@ -135,12 +135,13 @@ void GenericDatabase::saveOrUpdateMetaTableItem(MetaTable* metaTable, QdbupTable
   }
 }
 
-void GenericDatabase::save(QdbupTable* item) {
+QVariant GenericDatabase::save(QdbupTable* item) {
   if (MetaTable* metaTable = findMetaTable(item)) {
     if (metaTable->parentTable) {
       saveOrUpdateMetaTableItem(metaTable->parentTable, item);
     }
     saveOrUpdateMetaTableItem(metaTable, item);
+    return item->primaryKeyValue(metaTable);
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
@@ -162,6 +163,7 @@ void GenericDatabase::removeMetaTableItem(MetaTable* metaTable, QdbupTable* item
     qDebug() << query.lastError().databaseText() << query.lastError().driverText();
   } else {
     item->setExistsInDb(metaTable, false);
+    item->setPrimaryKeyValue(metaTable, QVariant::Invalid);
   }
 }
 
@@ -214,21 +216,6 @@ QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
       item->setExistsInDb(metaTable, true);
       const QSqlRecord& record = selectQuery.record();
       populateItem(record, item, metaTable);
-//      // populate data from resulting query
-//      // TODO: create QdbupQuery which contains column names and columns
-//      foreach (QdbupTableColumn* column, metaTable->columns) {
-//        QString columnName = metaTable->tableName + "_" + column->name();
-//        qDebug() << columnName;
-//        QVariant value = record.field(column->name()).value();
-//        if (column->isPrimaryKey()) {
-//          item->setPrimaryKeyValue(metaTable, value);
-//        } else {
-//          // TODO: foreign keys
-//          if (column->isDataOnly()) {
-//            item->setColumnValue(column, value);
-//          }
-//        }
-//      }
       return item;
     } else {
       // TODO: emit error
@@ -374,8 +361,6 @@ void GenericDatabase::registerSubclassRelationship(MetaTable* metaTable) {
     QString columnName = columnType.toLower() + "_id";
     columnType = findClassNameColumnType(columnType);
     QdbupTableColumn* column = new QdbupTableColumn(columnType, columnName);
-//    column->setForeignKey(true);
-//    column->setForeignKeyTable(metaTable->parentTable);
     column->setSubclassColumn(true);
     column->setPrimaryKey(true);
     metaTable->columns.append(column);
@@ -437,7 +422,7 @@ void GenericDatabase::ensureTablesAreCreated() {
   foreach (MetaTable* metaTable, tablesToCreate) {
     QString queryString = m_queryBuilder->createTableNoColumns().arg(metaTable->tableName);
     QSqlQuery query = m_db.exec(queryString);
-      qDebug() << query.lastQuery();
+    qDebug() << query.lastQuery();
     if (!query.isValid()) {
       // TODO: emit error
       qDebug() << m_db.lastError().databaseText() << m_db.lastError().driverText();

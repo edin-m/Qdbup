@@ -27,7 +27,7 @@ public:
   virtual void setPassword(const QString& password) = 0;
   virtual bool open() = 0;
 
-  virtual const QSqlDatabase& database() const = 0;
+  virtual QSqlDatabase& database() = 0;
 
   template<typename className, typename thisName>
   QList<className*> findHasMany(thisName thisPtr) {
@@ -35,8 +35,7 @@ public:
     return QList<className*>();
   }
 
-//  virtual void update(QdbupTable* item) = 0;
-  virtual void save(QdbupTable* item) = 0;
+  virtual QVariant save(QdbupTable* item) = 0;
   virtual void remove(QdbupTable* item) = 0;
 
   template<typename className>

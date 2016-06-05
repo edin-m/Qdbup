@@ -9,16 +9,6 @@
 #include "metatable.h"
 #include "querybuilder.h"
 
-class MyObject : public QObject {
-  Q_OBJECT
-public:
-  Q_INVOKABLE MyObject(dbup::QdbupDatabase* db) { }
-//  MyObject(const MyObject&) { }
-//  ~MyObject() { }
-  Q_INVOKABLE QString WTF() { return "WTF"; }
-};
-//Q_DECLARE_METATYPE(MyObject)
-
 namespace dbup {
 
 
@@ -33,7 +23,7 @@ public:
   explicit GenericDatabase(QObject* parent = 0);
   ~GenericDatabase();
 
-  const QSqlDatabase& database() const override { return m_db; }
+  QSqlDatabase& database() override { return m_db; }
 
   void initialize() override;
 
@@ -44,7 +34,7 @@ public:
   void setPassword(const QString& password) override;
   bool open() override;
 
-  void save(QdbupTable* item) override;
+  QVariant save(QdbupTable* item) override;
   void remove(QdbupTable* item) override;
 
 protected:

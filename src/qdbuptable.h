@@ -14,7 +14,7 @@ public: \
   static className* findOne(dbup::QdbupDatabase* db, QVariant id) { \
     return db->findOne<className>(QString(#className), id); \
   } \
-  void save() { return m_db->save(this); } \
+  QVariant save() { return m_db->save(this); } \
   void remove() { return m_db->remove(this); } \
   Q_INVOKABLE className* __dbupConstructor() { return new className(m_db); } \
 private: \
