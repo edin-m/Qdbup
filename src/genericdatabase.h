@@ -55,6 +55,7 @@ private:
   virtual QString columnDbType(const QdbupTableColumn* col) = 0;
   virtual QString genericDefaultDataType() = 0;
 
+  void populateItem(const  QSqlRecord& record, QdbupTable* item, MetaTable* metaTable);
   void saveOrUpdateMetaTableItem(MetaTable* metaTable, QdbupTable* item);
   void removeMetaTableItem(MetaTable* metaTable, QdbupTable* item);
   MetaTable* findMetaTableByClassName(const QString& className) ;

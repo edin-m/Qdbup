@@ -98,13 +98,63 @@ QSqlQuery QueryBuilder::deleteQuery(QSqlQuery& query,
   return query;
 }
 
+QString selectPart(MetaTable* mt) {
+  QStringList ownColumns;
+  QStringList joinColumns;
+  if (mt->parentTable) {
+    joinColumns << (mt->parentTable->tableName + ".*");
+  }
+  foreach (QdbupTableColumn* column, mt->columns) {
+    if (!column->isForeignKey()) {
+      QString name = QString("%1.%2").arg(mt->tableName, column->name());
+      QString alias = QString("%1_%2").arg(mt->tableName, column->name());
+      ownColumns << (name + " as " + alias);
+    } else {
+      joinColumns << (QString("%1.%2 as %3")
+                      .arg(mt->tableName)
+                      .arg(column->name())
+                      .arg(mt->tableName + "_" + column->name()));
+      joinColumns << (column->foreignKeyTable()->tableName + ".*");
+    }
+  }
+  ownColumns << joinColumns;
+  return QString(ownColumns.join(", "));
+}
+
+QString selectQuery(MetaTable* mt) {
+  QString sql = "SELECT ";
+  sql += selectPart(mt);
+  QString from = QString(" FROM %1").arg(mt->tableName);
+  if (mt->parentTable) {
+    from += QString(" INNER JOIN (%1) %2 ON %2.%3 = %4.%5")
+        .arg(selectQuery(mt->parentTable))
+        .arg(mt->parentTable->tableName)
+        .arg(mt->parentTable->tableName + "_" + mt->parentTable->primaryKey()->name())
+        .arg(mt->tableName)
+        .arg(mt->primaryKey()->name());
+  }
+  sql += from + " ";
+  foreach (QdbupTableColumn* column, mt->columns) {
+    if (column->isForeignKey()) {
+      sql += QString(" LEFT JOIN (%1) %2 ON %2.%3 = %4.%5")
+          .arg(selectQuery(column->foreignKeyTable()))
+          .arg(column->foreignKeyTable()->tableName)
+          .arg(column->foreignKeyTable()->tableName + "_" + column->foreignKeyTable()->primaryKey()->name())
+          .arg(mt->tableName)
+          .arg(column->name());
+    }
+  }
+
+  return sql;
+}
+
 QSqlQuery QueryBuilder::selectByIdQuery(QSqlDatabase& db, MetaTable* metaTable, QVariant id) {
-  QString queryStr = QString("SELECT * FROM %1 WHERE %2=?")
-      .arg(metaTable->tableName).arg(metaTable->primaryKey()->name());
+  QString queryStr = selectQuery(metaTable);
   QSqlQuery selectQuery(db);
   selectQuery.prepare(queryStr);
   selectQuery.addBindValue(id);
   return selectQuery;
+  return QSqlQuery();
 }
 
 }

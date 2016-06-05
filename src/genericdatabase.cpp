@@ -176,9 +176,33 @@ void GenericDatabase::remove(QdbupTable* item) {
   }
 }
 
+void GenericDatabase::populateItem(const  QSqlRecord& record, QdbupTable* item, MetaTable* metaTable) {
+  if (metaTable->parentTable) {
+    populateItem(record, item, metaTable->parentTable);
+  }
+  foreach (QdbupTableColumn* column, metaTable->columns) {
+    QString columnName = metaTable->tableName + "_" + column->name();
+    QVariant value = record.field(columnName).value();
+    if (column->isPrimaryKey()) {
+      item->setPrimaryKeyValue(metaTable, value);
+    } else {
+      if (column->isDataOnly()) {
+        item->setColumnValue(column, value);
+      } else if (column->isForeignKey()) {
+        if (!value.isNull()) {
+          QdbupTable* foreignItem = static_cast<QdbupTable*>(column->foreignKeyTable()->metaObject->newInstance(Q_ARG(dbup::QdbupDatabase*, this)));
+          populateItem(record, foreignItem, column->foreignKeyTable());
+          item->setColumnValue(column, QVariant::fromValue<QdbupTable*>(foreignItem));
+        } else {
+          item->setColumnValue(column, QVariant::fromValue<QdbupTable*>(nullptr));
+        }
+      }
+    }
+  }
+}
+
 QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
   if (MetaTable* metaTable = findMetaTableByClassName(className)) {
-    // TODO: join any foreign keys in query
     QSqlQuery selectQuery = m_queryBuilder->selectByIdQuery(m_db, metaTable, id);
     qDebug() << selectQuery.lastQuery();
     bool result = selectQuery.exec();
@@ -189,18 +213,22 @@ QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
       QdbupTable* item = static_cast<QdbupTable*>(metaTable->metaObject->newInstance(Q_ARG(dbup::QdbupDatabase*, this)));
       item->setExistsInDb(metaTable, true);
       const QSqlRecord& record = selectQuery.record();
-      foreach (QdbupTableColumn* column, metaTable->columns) {
-        QVariant value = record.field(column->name()).value();
-        qDebug() << column->name() << value;
-        if (column->isPrimaryKey()) {
-          item->setPrimaryKeyValue(metaTable, value);
-        } else {
-          // TODO: foreign keys
-          if (column->isDataOnly()) {
-            item->setColumnValue(column, value);
-          }
-        }
-      }
+      populateItem(record, item, metaTable);
+//      // populate data from resulting query
+//      // TODO: create QdbupQuery which contains column names and columns
+//      foreach (QdbupTableColumn* column, metaTable->columns) {
+//        QString columnName = metaTable->tableName + "_" + column->name();
+//        qDebug() << columnName;
+//        QVariant value = record.field(column->name()).value();
+//        if (column->isPrimaryKey()) {
+//          item->setPrimaryKeyValue(metaTable, value);
+//        } else {
+//          // TODO: foreign keys
+//          if (column->isDataOnly()) {
+//            item->setColumnValue(column, value);
+//          }
+//        }
+//      }
       return item;
     } else {
       // TODO: emit error
