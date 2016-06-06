@@ -64,11 +64,14 @@ int main(int argc, char* argv[])
 
   QuerySelect article2 =
       QuerySelect(db)
-      .select<Article>()
-      .leftJoin<Author>()
-      .on<Article, Author>("author_id", "=", "id")
+      .select<Article, Author, AdsArticle>("title", "name", "expires")
+      .leftJoin<Article, Author>("author_id", "=", "id")
+//      .leftJoin<Author>()
+//      .on<Article, Author>("author_id", "=", "id")
       ;
   qDebug() << article2.queryStr();
+
+//  QuerySelect(db).test<Article>();
 
   QuerySelect adsarticle2 =
       QuerySelect(db)

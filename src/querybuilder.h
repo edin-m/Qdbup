@@ -2,7 +2,11 @@
 #define QUERYBUILDER_H
 
 #include <QString>
+#include <QDebug>
 #include <QSqlQuery>
+
+#include <vector>
+#include <tuple>
 
 #include "metatable.h"
 
@@ -40,6 +44,19 @@ public:
     return QString(m_selectPart.trimmed() + " " + m_fromPart.trimmed() + " " + m_wherePart.trimmed()).trimmed();
   }
 
+  template<typename A>
+  QuerySelect& test() {
+    qDebug() << __FUNCTION__ << A::staticMetaObject.className();
+    return *this;
+  }
+
+  template<typename A, typename B, typename... C>
+  QuerySelect& test() {
+    test<A>();
+    test<B, C...>();
+    return *this;
+  }
+
   template<typename param1>
   QuerySelect& select() {
     const QMetaObject* metaObject = &param1::staticMetaObject;
@@ -55,6 +72,36 @@ public:
     }
     return *this;
   }
+
+  template<typename First>
+  void selectInternal() {
+    qDebug() << __FUNCTION__ << First::staticMetaObject.className();
+  }
+
+  template<typename First, typename Second, typename... Others>
+  void selectInternal() {
+    selectInternal<First>();
+    selectInternal<Second, Others...>();
+  }
+
+  template<class... Types, class... Args>
+  QuerySelect& select(Args... args) {
+    qDebug() << sizeof...(Types);
+    qDebug() << sizeof...(Args);
+    selectInternal<Types...>();
+    std::vector<QString> str = { args... };
+    for (int i = 0; i < str.size(); i++) {
+      qDebug() << str.at(i);
+    }
+    return *this;
+  }
+
+//  template<typename First, typename Second, typename... Others>
+//  QuerySelect& select() {
+//    select<First>();
+//    select<Second, Others...>();
+//    return *this;
+//  }
 
   template<typename param1>
   QuerySelect& leftJoin() {
