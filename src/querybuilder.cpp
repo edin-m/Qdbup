@@ -98,6 +98,7 @@ QSqlQuery QueryBuilder::deleteQuery(QSqlQuery& query,
   return query;
 }
 
+// TODO: refactor this
 QString selectPart(MetaTable* mt) {
   QStringList ownColumns;
   QStringList joinColumns;
@@ -121,6 +122,7 @@ QString selectPart(MetaTable* mt) {
   return QString(ownColumns.join(", "));
 }
 
+// TODO: refactor this
 QString selectQuery(MetaTable* mt) {
   QString sql = "SELECT ";
   sql += selectPart(mt);
@@ -149,10 +151,12 @@ QString selectQuery(MetaTable* mt) {
 }
 
 QSqlQuery QueryBuilder::selectByIdQuery(QSqlDatabase& db, MetaTable* metaTable, QVariant id) {
-  QString queryStr = selectQuery(metaTable);
+  QString queryStr = selectQuery(metaTable)
+      + QString(" WHERE %1.%2=?").arg(metaTable->tableName).arg(metaTable->primaryKey()->name());
   QSqlQuery selectQuery(db);
   selectQuery.prepare(queryStr);
   selectQuery.addBindValue(id);
+  // TODO: add where
   return selectQuery;
   return QSqlQuery();
 }

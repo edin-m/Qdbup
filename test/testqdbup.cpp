@@ -9,6 +9,7 @@
 #include <QSqlRecord>
 
 #include "postgresdatabase.h"
+#include "querybuilder.h"
 
 static const QString testString1 = "wicked sick 1!";
 static const QString testString2 = "wicked sick 2!";
@@ -76,6 +77,12 @@ void TestQdbup::testInheritance()
   Q_ASSERT(detailed->get_name() == detailedName->get_name());
   Q_ASSERT(detailed->get_detail() == detailedName->get_detail());
   delete detailed;
+}
+
+void TestQdbup::testQuerySelect_AllFromSimpleName()
+{
+  QuerySelect query = QuerySelect(db).select<SimpleName>();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name FROM simplename");
 }
 
 void TestQdbup::cleanupTestCase()

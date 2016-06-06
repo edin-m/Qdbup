@@ -101,6 +101,10 @@ bool GenericDatabase::open() {
   return m_db.open();
 }
 
+QList<MetaTable*> GenericDatabase::metaTables() {
+  return m_metaTables;
+}
+
 void GenericDatabase::saveOrUpdateMetaTableItem(MetaTable* metaTable, QdbupTable* item) {
   QList<QdbupTableColumn*> columns;
   bool isSubclass = metaTable->parentTable != nullptr;
@@ -145,6 +149,7 @@ QVariant GenericDatabase::save(QdbupTable* item) {
   } else {
     qWarning() << "Could not find meta table!" << item->metaObject()->className();
   }
+  return QVariant::Invalid;
 }
 
 
@@ -203,8 +208,33 @@ void GenericDatabase::populateItem(const  QSqlRecord& record, QdbupTable* item, 
   }
 }
 
-QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
-  if (MetaTable* metaTable = findMetaTableByClassName(className)) {
+//QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
+//  ///// DEPRECATED!
+//  if (MetaTable* metaTable = findMetaTableByClassName(className)) {
+//    QSqlQuery selectQuery = m_queryBuilder->selectByIdQuery(m_db, metaTable, id);
+//    qDebug() << selectQuery.lastQuery();
+//    bool result = selectQuery.exec();
+//    if (!selectQuery.first()) {
+//      // TODO: emit error could not find since .lastError() is empty
+//    }
+//    if (result) {
+//      QdbupTable* item = static_cast<QdbupTable*>(metaTable->metaObject->newInstance(Q_ARG(dbup::QdbupDatabase*, this)));
+//      item->setExistsInDb(metaTable, true);
+//      const QSqlRecord& record = selectQuery.record();
+//      populateItem(record, item, metaTable);
+//      return item;
+//    } else {
+//      // TODO: emit error
+//      qDebug() << selectQuery.lastError().databaseText() << selectQuery.lastError().driverText();
+//    }
+//  } else {
+//    qDebug() << "Could not find meta table by class name" << className;
+//  }
+//  return nullptr;
+//}
+
+QdbupTable* GenericDatabase::findById(const QMetaObject* metaObject, QVariant id) {
+  if (MetaTable* metaTable = findMetaTableByMetaObject(metaObject)) {
     QSqlQuery selectQuery = m_queryBuilder->selectByIdQuery(m_db, metaTable, id);
     qDebug() << selectQuery.lastQuery();
     bool result = selectQuery.exec();
@@ -222,9 +252,19 @@ QdbupTable* GenericDatabase::findById(const QString& className, QVariant id) {
       qDebug() << selectQuery.lastError().databaseText() << selectQuery.lastError().driverText();
     }
   } else {
-    qDebug() << "Could not find meta table by class name" << className;
+    qDebug() << "Could not find meta table by meta object" << metaObject->className();
   }
   return nullptr;
+}
+
+QList<QdbupTable*> GenericDatabase::findMany(const QMetaObject* metaObject) {
+  QList<QdbupTable*> itemList;
+  if (MetaTable* metaTable = findMetaTableByMetaObject(metaObject)) {
+
+  } else {
+    qDebug() << "Could not find meta table by meta object" << metaObject->className();
+  }
+  return itemList;
 }
 
 /**
@@ -245,8 +285,21 @@ MetaTable* GenericDatabase::findMetaTableByClassName(const QString& className) {
 
 MetaTable* GenericDatabase::findMetaTable(QdbupTable* table) {
   const QMetaObject* metaObject = table->metaObject();
+  return findMetaTableByMetaObject(metaObject);
+}
+
+MetaTable* GenericDatabase::findMetaTableByMetaObject(const QMetaObject* metaObject) {
   foreach (MetaTable* metaTable, m_metaTables) {
     if (metaTable->metaObject == metaObject) {
+      return metaTable;
+    }
+  }
+  return nullptr;
+}
+
+MetaTable* GenericDatabase::findMetaTableByTableName(const QString tableName) {
+  foreach (MetaTable* metaTable, m_metaTables) {
+    if (metaTable->tableName == tableName) {
       return metaTable;
     }
   }
@@ -363,7 +416,7 @@ void GenericDatabase::registerSubclassRelationship(MetaTable* metaTable) {
     QdbupTableColumn* column = new QdbupTableColumn(columnType, columnName);
     column->setSubclassColumn(true);
     column->setPrimaryKey(true);
-    metaTable->columns.append(column);
+    metaTable->columns.prepend(column);
   }
 }
 

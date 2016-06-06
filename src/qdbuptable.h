@@ -7,12 +7,13 @@
 #include "qdbupdatabase.h"
 
 //  className* findOne() { return m_db->findOne<className>(this); } \
+//    return db->findOne<className>(QString(#className), id); \
 
 #define DB_TABLE(className) \
 public: \
   QString tableName() const override { return QString(#className).toLower(); } \
   static className* findOne(dbup::QdbupDatabase* db, QVariant id) { \
-    return db->findOne<className>(QString(#className), id); \
+    return db->findOne<className>(id); \
   } \
   QVariant save() { return m_db->save(this); } \
   void remove() { return m_db->remove(this); } \
@@ -48,7 +49,7 @@ public: \
 private: \
   Q_INVOKABLE void __registerHasMany##nameParam() { } \
 public: \
-  QList<className*> get_##nameParam() { return m_db->findHasMany<className>(this); }
+  QList<className*> get_##nameParam() { return m_db->findMany<className>(this); }
 
 namespace dbup {
 

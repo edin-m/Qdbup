@@ -33,12 +33,17 @@ public:
   void setUsername(const QString& username) override;
   void setPassword(const QString& password) override;
   bool open() override;
+  QList<MetaTable*> metaTables() override;
 
   QVariant save(QdbupTable* item) override;
   void remove(QdbupTable* item) override;
+  MetaTable* findMetaTableByMetaObject(const QMetaObject* metaObject) override;
+  MetaTable* findMetaTableByTableName(const QString tableName) override;
 
 protected:
-  virtual QdbupTable* findById(const QString& className, QVariant id) override;
+//  virtual QdbupTable* findById(const QString& className, QVariant id) override;
+  virtual QdbupTable* findById(const QMetaObject* metaObject, QVariant id) override;
+  virtual QList<QdbupTable*> findMany(const QMetaObject* meta) override;
 
 private:
   virtual QueryBuilder* createQueryBuilder() = 0;

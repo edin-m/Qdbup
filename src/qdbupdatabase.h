@@ -15,7 +15,9 @@ class QdbupDatabase : public QObject {
   friend class QdbupTable;
 protected:
   virtual void registerTable(QdbupTable* table) = 0;
-  virtual QdbupTable* findById(const QString& className, QVariant id) = 0;
+//  virtual QdbupTable* findById(const QString& className, QVariant id) = 0;
+  virtual QdbupTable* findById(const QMetaObject* metaObject, QVariant id) = 0;
+  virtual QList<QdbupTable*> findMany(const QMetaObject* meta) = 0;
 
 public:
   explicit QdbupDatabase(QObject* parent) : QObject(parent) { }
@@ -27,12 +29,21 @@ public:
   virtual void setPassword(const QString& password) = 0;
   virtual bool open() = 0;
 
+  virtual QList<MetaTable*> metaTables() = 0;
+  virtual MetaTable* findMetaTableByMetaObject(const QMetaObject* metaObject) = 0;
+  virtual MetaTable* findMetaTableByTableName(const QString tableName) = 0;
+
   virtual QSqlDatabase& database() = 0;
 
   template<typename className, typename thisName>
-  QList<className*> findHasMany(thisName thisPtr) {
+  QList<className*> findMany(thisName thisPtr) {
     const QMetaObject* meta = thisPtr->metaObject();
-    return QList<className*>();
+    QList<className*> list;
+    QList<QdbupTable*> items = findMany(meta);
+    foreach (QdbupTable* item, items) {
+      list.append(qobject_cast<className*>(item));
+    }
+    return list;
   }
 
   virtual QVariant save(QdbupTable* item) = 0;
@@ -40,7 +51,13 @@ public:
 
   template<typename className>
   className* findOne(const QString& classNameParam, QVariant id) {
-    return static_cast<className*>(findById(classNameParam, id));
+    return qobject_cast<className*>(findById(classNameParam, id));
+  }
+
+  template<typename className>
+  className* findOne(QVariant id) {
+    const QMetaObject* metaObject = &className::staticMetaObject;
+    return qobject_cast<className*>(findById(metaObject, id));
   }
 
   template<typename className, typename thisName>

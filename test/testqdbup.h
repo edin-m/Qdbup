@@ -23,6 +23,7 @@ private slots:
   void testFindOneSimpleName();
   void testRemoveSimpleName();
   void testInheritance();
+  void testQuerySelect_AllFromSimpleName();
   void cleanupTestCase();
 };
 

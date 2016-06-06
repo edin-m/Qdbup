@@ -8,6 +8,8 @@
 
 #include "genericdatabase.h"
 #include "postgresdatabase.h"
+#include "querybuilder.h"
+#include "postgresquerybuilder.h"
 
 #include "article.h"
 
@@ -55,6 +57,31 @@ int main(int argc, char* argv[])
   qDebug() << ad2->get_name();
   qDebug() << ad2->get_author()->get_name();
   qDebug() << ad2->get_author()->get_hair();
+
+  using namespace dbup;
+  QuerySelect authorQuery = QuerySelect(db).select<Author>();
+  qDebug() << authorQuery.queryStr();
+
+  QuerySelect article2 =
+      QuerySelect(db)
+      .select<Article>()
+      .leftJoin<Author>()
+      .on<Article, Author>("author_id", "=", "id")
+      ;
+  qDebug() << article2.queryStr();
+
+  QuerySelect adsarticle2 =
+      QuerySelect(db)
+      .select<AdsArticle>()
+      .innerJoin(QuerySelect(db)
+//                 .select<Article, Author>("id, date", "id, name")
+                 .select<Article>()
+                 .leftJoin(QuerySelect(db).select<Author>())
+                 .on<Article, Author>("author_id", "=", "id"))
+      .on<AdsArticle, Article>("article_id", "=", "id")
+      .where<Author>("author_id", "=", 1);
+      ;
+  qDebug() << adsarticle2.queryStr();
 
 //  article->set_name("wicked sick");
 //  article->save();
