@@ -4,6 +4,9 @@
 #include <QString>
 #include <QDebug>
 #include <QSqlQuery>
+#include <QPair>
+#include <QHash>
+#include <QMap>
 
 #include <vector>
 #include <tuple>
@@ -15,144 +18,170 @@ namespace dbup {
 class QueryBuilder;
 class QuerySelect;
 
-/**
- * @brief The QuerySelect class
- */
-class QuerySelect {
-  QdbupDatabase* m_db;
-  QString m_selectPart = "SELECT ";
-  QString m_fromPart = "FROM ";
-  QString m_wherePart = "";
-  MetaTable* m_selectTable = nullptr;
-public:
-  QuerySelect(QdbupDatabase* db) : m_db(db) { }
-  QuerySelect(const QuerySelect& builder)
-    : m_db(builder.m_db),
-      m_selectPart(builder.m_selectPart),
-      m_fromPart(builder.m_fromPart),
-      m_wherePart(builder.m_wherePart),
-      m_selectTable(builder.m_selectTable)
-  { }
+//class QuerySelect {
+//  QdbupDatabase* m_db;
+//  QList<MetaTable*> m_selectTables;
+//  QList<MetaTable*> m_fromTables;
+//  QString m_selectPart = "SELECT";
+//  QString m_fromPart = "FROM";
+//  QString m_wherePart;
+//  std::vector<QString> m_columns;
 
-  QString queryStr() {
-    auto lastIsComma = [](const QString& str) -> bool {
-      return str.length() > 0 && str.lastIndexOf(',') == str.length() - 1;
-    };
-    m_selectPart = lastIsComma(m_selectPart.trimmed()) ? m_selectPart.left(m_selectPart.length() - 2) : m_selectPart;
-    m_fromPart = lastIsComma(m_fromPart.trimmed()) ? m_fromPart.left(m_fromPart.length() - 2) : m_fromPart;
-    m_wherePart = lastIsComma(m_wherePart.trimmed()) ? m_wherePart.left(m_wherePart.length() - 2) : m_wherePart;
-    return QString(m_selectPart.trimmed() + " " + m_fromPart.trimmed() + " " + m_wherePart.trimmed()).trimmed();
-  }
-
-  template<typename A>
-  QuerySelect& test() {
-    qDebug() << __FUNCTION__ << A::staticMetaObject.className();
-    return *this;
-  }
-
-  template<typename A, typename B, typename... C>
-  QuerySelect& test() {
-    test<A>();
-    test<B, C...>();
-    return *this;
-  }
-
-  template<typename param1>
-  QuerySelect& select() {
-    const QMetaObject* metaObject = &param1::staticMetaObject;
-    if (MetaTable* metaTable = m_db->findMetaTableByMetaObject(metaObject)) {
-      m_selectTable = metaTable;
-      foreach (QdbupTableColumn* column, metaTable->columns) {
-        m_selectPart += QString("%1.%2 as %3, ")
-            .arg(metaTable->tableName)
-            .arg(column->name())
-            .arg(metaTable->tableName + "_" + column->name());
-      }
-      m_fromPart += metaTable->tableName;
-    }
-    return *this;
-  }
-
-  template<typename First>
-  void selectInternal() {
-    qDebug() << __FUNCTION__ << First::staticMetaObject.className();
-  }
-
-  template<typename First, typename Second, typename... Others>
-  void selectInternal() {
-    selectInternal<First>();
-    selectInternal<Second, Others...>();
-  }
-
-  template<class... Types, class... Args>
-  QuerySelect& select(Args... args) {
-    qDebug() << sizeof...(Types);
-    qDebug() << sizeof...(Args);
-    selectInternal<Types...>();
-    std::vector<QString> str = { args... };
-    for (int i = 0; i < str.size(); i++) {
-      qDebug() << str.at(i);
-    }
-    return *this;
-  }
+//  template<typename First>
+//  inline void selectInternal() {
+//    select<First>();
+//  }
 
 //  template<typename First, typename Second, typename... Others>
-//  QuerySelect& select() {
-//    select<First>();
-//    select<Second, Others...>();
+//  inline void selectInternal() {
+//    selectInternal<First>();
+//    selectInternal<Second, Others...>();
+//  }
+
+//  template<typename First>
+//  inline void fromInternal() {
+//    from<First>();
+//  }
+
+//  template<typename First, typename Second, typename... Others>
+//  inline void fromInternal() {
+//    fromInternal<First>();
+//    fromInternal<Second, Others...>();
+//  }
+
+//  QString normalize(const QString str) {
+//    QString s = str.trimmed();
+//    if (s.at(s.length() - 1) == ',') {
+//      s = s.left(s.length() - 1);
+//    }
+//    return s;
+//  }
+
+//public:
+//  QuerySelect(QdbupDatabase* db)
+//    : m_db (db) { }
+//  QuerySelect(const QuerySelect& query)
+//    : m_db(query.m_db),
+//      m_selectPart(query.m_selectPart),
+//      m_fromPart(query.m_fromPart),
+//      m_wherePart(query.m_wherePart),
+//      m_selectTables(query.m_selectTables),
+//      m_fromTables(query.m_fromTables),
+//      m_columns(query.m_columns)
+//  { }
+
+//  template<class... Types, class... Args>
+//  QuerySelect& select(Args... args) {
+//    m_columns = { args... };
+//    selectInternal<Types...>();
 //    return *this;
 //  }
 
-  template<typename param1>
-  QuerySelect& leftJoin() {
-    return leftJoin(QuerySelect(m_db).select<param1>());
-  }
+//  template<class... Types, class... Args>
+//  QuerySelect& from(Args... args) {
+//    fromInternal<Types...>();
+//    return *this;
+//  }
 
-  QuerySelect& leftJoin(QuerySelect query) {
-    static const QString leftJoin(" LEFT JOIN (%1) %2");
-    m_selectPart += query.m_selectTable->tableName + ".*";
-    m_fromPart += leftJoin.arg(query.queryStr(), query.m_selectTable->tableName);
-    return *this;
-  }
+//  template<typename TableParam>
+//  QuerySelect& select() {
+//    const QMetaObject* metaObject = &TableParam::staticMetaObject;
+//    if (MetaTable* metaTable = m_db->findMetaTableByMetaObject(metaObject)) {
+//      m_selectTables.append(metaTable);
+//      m_fromTables.append(metaTable);
+//      m_fromPart += " " + metaTable->tableName + ", ";
+//      int index = m_selectTables.length() - 1;
+//      QList<QdbupTableColumn*> columns;
+//      if (index < m_columns.size()) {
+//        // add specified columns and primary key
+//        foreach (QString rawColumn, m_columns.at(m_selectTables.length() - 1).split(",")) {
+//          columns << metaTable->findColumn(rawColumn.trimmed());
+//        }
+//        if (columns.contains(metaTable->primaryKey())) {
+//          columns.prepend(metaTable->primaryKey());
+//        }
+//      } else {
+//        // add all columns
+//        foreach (QdbupTableColumn* column, metaTable->columns) {
+//          columns << column;
+//        }
+//      }
+//      // add columns
+//      foreach (QdbupTableColumn* column, columns) {
+//        m_selectPart += " " + QString("%1.%2 as %3,")
+//            .arg(metaTable->tableName, column->name())
+//            .arg(metaTable->tableName + "_" + column->name());
+//      }
+//    }
+//    return *this;
+//  }
 
-  template<typename param1>
-  QuerySelect& innerJoin() {
-    return innerJoin(QuerySelect(m_db).select<param1>());
-  }
+//  template<typename Table>
+//  QuerySelect& leftJoin(QuerySelect query) {
+//    const QMetaObject* metaObject = &Table::staticMetaObject;
+//    MetaTable* metaTable = m_db->findMetaTableByMetaObject(metaObject);
+//    m_fromTables.append(metaTable);
+//    m_fromPart = normalize(m_fromPart);
+//    m_selectPart = normalize(m_selectPart);
+//    m_selectPart += ", " + metaTable->tableName + ".*";
+//    m_fromPart += " LEFT JOIN " + QString("(%1) %2").arg(query.queryStr(), metaTable->tableName);
+//    return *this;
+//  }
 
-  QuerySelect& innerJoin(QuerySelect query) {
-    static const QString innerJoin(" INNER JOIN (%1) %2");
-    m_selectPart += query.m_selectTable->tableName + ".*";
-    m_fromPart += innerJoin.arg(query.queryStr(), query.m_selectTable->tableName);
-    return *this;
-  }
+//  template<typename Table>
+//  QuerySelect& leftJoin(const QString leftPart, const QString op, const QString rightPart) {
+//    leftJoin<Table>(QuerySelect(m_db).select<Table>());
+//    on(leftPart, op, rightPart);
+//    return *this;
+//  }
 
-  template<typename param1, typename param2>
-  QuerySelect& on(const QString leftPart, const QString op, const QString rightPart) {
-    static const QString ON(" ON %1.%2%3%4.%5");
-    MetaTable* metaTableLeft = m_db->findMetaTableByMetaObject(&param1::staticMetaObject);
-    MetaTable* metaTableRight = m_db->findMetaTableByMetaObject(&param2::staticMetaObject);
-    if (metaTableLeft && metaTableRight) {
-      QString leftPrefix = metaTableLeft->tableName + "_";
-      QString rightPrefix = metaTableRight->tableName + "_";
-      m_fromPart += ON.arg(metaTableLeft->tableName).arg(leftPart)
-          .arg(op).arg(metaTableRight->tableName).arg(rightPrefix + rightPart);
-    }
-    return *this;
-  }
+//  template<typename Table>
+//  QuerySelect& innerJoin(const QString leftPart, const QString op, const QString rightPart) {
+//    innerJoin<Table>(QuerySelect(m_db).select<Table>());
+//    on(leftPart, op, rightPart);
+//    return *this;
+//  }
 
-  template<typename param1>
-  QuerySelect& where(const QString name, const QString op, const QVariant value) {
-    static const QString WHERE("%1%2%3");
-    m_wherePart += m_wherePart.length() == 0 ? " WHERE " : "";
-    QString prefix = "";
-    if (MetaTable* metaTable = m_db->findMetaTableByMetaObject(&param1::staticMetaObject)) {
-      prefix = metaTable->tableName + ".";
-    }
-    m_wherePart += WHERE.arg(prefix + name, op, value.toString());
-    return *this;
-  }
-};
+//  template<typename Table>
+//  QuerySelect& innerJoin(QuerySelect query) {
+//    const QMetaObject* metaObject = &Table::staticMetaObject;
+//    MetaTable* metaTable = m_db->findMetaTableByMetaObject(metaObject);
+//    m_fromTables.append(metaTable);
+//    m_fromPart = normalize(m_fromPart);
+//    m_selectPart = normalize(m_selectPart);
+//    m_selectPart += ", " + metaTable->tableName + ".*";
+//    m_fromPart += " INNER JOIN " + QString("(%1) %2").arg(query.queryStr(), metaTable->tableName);
+//    return *this;
+//  }
+
+//  QuerySelect& on(const QString leftPart, const QString op, const QString rightPart) {
+//    MetaTable* leftTable = m_fromTables[m_fromTables.length() - 2];
+//    MetaTable* rightTable = m_fromTables[m_fromTables.length() - 1];
+//    m_fromPart += QString(" ON %1.%2%3%4.%5")
+//        .arg(leftTable->tableName)
+//        .arg(leftPart)
+//        .arg(op)
+//        .arg(rightTable->tableName)
+//        .arg(rightTable->tableName + "_" + rightPart);
+//    return *this;
+//  }
+
+//  template<typename TableParam>
+//  QuerySelect& where(const QString leftPart, const QString op, const QVariant val) {
+//    return *this;
+//  }
+
+//  template<typename LeftTable, typename RightTable>
+//  QuerySelect& where(const QString leftPart, const QString op, const QVariant val) {
+//    return *this;
+//  }
+
+//  QString queryStr() {
+//    m_selectPart = normalize(m_selectPart);
+//    m_fromPart = normalize(m_fromPart);
+//    return m_selectPart + " " + m_fromPart + " " + m_wherePart;
+//  }
+//};
 
 /**
  * @brief The QueryBuilder class

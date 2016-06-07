@@ -7,6 +7,7 @@
 
 int main(int argc, char **argv) {
   QCoreApplication app(argc, argv);
+
   int err = 0;
   {
     TestQdbup testQdbup;

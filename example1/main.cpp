@@ -10,6 +10,7 @@
 #include "postgresdatabase.h"
 #include "querybuilder.h"
 #include "postgresquerybuilder.h"
+#include "queryselect.h"
 
 #include "article.h"
 
@@ -59,40 +60,16 @@ int main(int argc, char* argv[])
   qDebug() << ad2->get_author()->get_hair();
 
   using namespace dbup;
-  QuerySelect authorQuery = QuerySelect(db).select<Author>();
-  qDebug() << authorQuery.queryStr();
+  QuerySelect s(db);
 
-  QuerySelect article2 =
-      QuerySelect(db)
-      .select<Article, Author, AdsArticle>("title", "name", "expires")
-      .leftJoin<Article, Author>("author_id", "=", "id")
-//      .leftJoin<Author>()
-//      .on<Article, Author>("author_id", "=", "id")
-      ;
-  qDebug() << article2.queryStr();
-
-//  QuerySelect(db).test<Article>();
-
-  QuerySelect adsarticle2 =
-      QuerySelect(db)
+  qDebug() << s.queryStr();
+  s = QuerySelect(db)
       .select<AdsArticle>()
-      .innerJoin(QuerySelect(db)
-//                 .select<Article, Author>("id, date", "id, name")
-                 .select<Article>()
-                 .leftJoin(QuerySelect(db).select<Author>())
-                 .on<Article, Author>("author_id", "=", "id"))
-      .on<AdsArticle, Article>("article_id", "=", "id")
-      .where<Author>("author_id", "=", 1);
-      ;
-  qDebug() << adsarticle2.queryStr();
-
-//  article->set_name("wicked sick");
-//  article->save();
-//  QVariant id = article->get_id();
-//  qDebug() << "article id" << id;
-
-//  Article* newart = Article::findOne(db, id);
-//  qDebug() << newart->get_name();
+      .innerJoin<Article>(QuerySelect(db)
+                          .select<Article>()
+                          .leftJoin<Author>("author_id", "=", "id"))
+      .on("article_id", "=", "id");
+  qDebug() << s.queryStr();
 
   QMap<QString, QString> map = {
     { "name", "Jacob" }

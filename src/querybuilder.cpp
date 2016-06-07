@@ -4,6 +4,7 @@
 
 #include "metatable.h"
 #include "qdbuptable.h"
+#include "queryselect.h"
 
 namespace dbup {
 

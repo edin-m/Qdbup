@@ -24,6 +24,8 @@ private slots:
   void testRemoveSimpleName();
   void testInheritance();
   void testQuerySelect_AllFromSimpleName();
+  void testQuerySelect_MultipleTablesColumns();
+  void testQuerySelect_Where();
   void cleanupTestCase();
 };
 

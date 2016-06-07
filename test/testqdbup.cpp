@@ -82,7 +82,40 @@ void TestQdbup::testInheritance()
 void TestQdbup::testQuerySelect_AllFromSimpleName()
 {
   QuerySelect query = QuerySelect(db).select<SimpleName>();
-  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name FROM simplename");
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name FROM simplename ");
+  query = QuerySelect(db).select<SimpleName>("name");
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name FROM simplename ");
+}
+
+void TestQdbup::testQuerySelect_MultipleTablesColumns()
+{
+  QuerySelect query = QuerySelect(db).select<SimpleName, DetailedName>("name", "detail");
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name, "
+                               "detailedname.simplename_id as detailedname_simplename_id, detailedname.detail as "
+                               "detailedname_detail FROM simplename,  detailedname ");
+  query = QuerySelect(db).select<SimpleName>().leftJoin<DetailedName>("id", "=", "simplename_id");
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name, detailedname.* "
+                               "FROM simplename LEFT JOIN (SELECT detailedname.simplename_id as detailedname_simplename_id, "
+                               "detailedname.detail as detailedname_detail FROM detailedname ) detailedname ON "
+                               "simplename.id=detailedname.detailedname_simplename_id ");
+}
+
+void TestQdbup::testQuerySelect_Where()
+{
+  QuerySelect query = QuerySelect(db).select<SimpleName>().where("id", "=", 1);
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name FROM simplename WHERE simplename.id=1");
+  query = QuerySelect(db)
+      .select<SimpleName, DetailedName>()
+      .where<SimpleName, DetailedName>("id", "=", "simplename_id");
+  qDebug() << query.queryStr();
+  Q_ASSERT(query.queryStr() == "SELECT simplename.id as simplename_id, simplename.name as simplename_name, detailedname.simplename_id "
+                               "as detailedname_simplename_id, detailedname.detail as detailedname_detail FROM simplename,  "
+                               "detailedname WHERE simplename.id=detailedname.simplename_id");
 }
 
 void TestQdbup::cleanupTestCase()

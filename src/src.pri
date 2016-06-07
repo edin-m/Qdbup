@@ -9,7 +9,8 @@ HEADERS += $$PWD/../include/Qdbup/qdbup.h \
     $$PWD/metatable.h \
     $$PWD/postgresdatabase.h \
     $$PWD/querybuilder.h \
-    $$PWD/postgresquerybuilder.h
+    $$PWD/postgresquerybuilder.h \
+    $$PWD/queryselect.h
 
 SOURCES += \
     $$PWD/qdbuptable.cpp \
@@ -18,4 +19,5 @@ SOURCES += \
     $$PWD/metatable.cpp \
     $$PWD/postgresdatabase.cpp \
     $$PWD/querybuilder.cpp \
-    $$PWD/postgresquerybuilder.cpp
+    $$PWD/postgresquerybuilder.cpp \
+    $$PWD/queryselect.cpp
